@@ -1,5 +1,33 @@
-module.exports 与 exports 的区别
+一、module.exports 与 exports 的区别
 
 如果你想你的模块是一个特定的类型就用Module.exports。如果你想的模块是一个典型的“实例化对象”就用exports。
 
 module.exports可以单独的定义，返回数据类型，而export只能是返回一个object对象。
+
+二、node 中 require 的实现原理
+
+1、先从缓存中读取，如果没有则继续往下
+
+2、判断需要模块路径是否以/结尾，如果不是，则要判断
+
+    a. 检查是否是一个文件，如果是，则转换为真实路径
+
+    b. 否则如果是一个目录，则调用tryPackage方法读取该目录下的package.json文件，把里面的main属性设置为filename
+
+    c. 如果没有读到路径上的文件，则通过tryExtensions尝试在该路径后依次加上.js，.json和.node后缀，判断是否存在，若存在则返回加上后缀后的路径
+
+3、如果依然不存在，则同样调用tryPackage方法读取该目录下的package.json文件，把里面的main属性设置为filename
+
+4、如果依然不存在，则尝试在该路径后依次加上index.js，index.json和index.node，判断是否存在，若存在则返回拼接后的路径。
+
+5、若解析成功，则把解析得到的文件名cache起来，下次require就不用再次解析了，否则若解析失败，则返回false
+
+总结：
+
+exports其实是module的属性，require则是Module原型的方法。exports.xx=xx，其实跟module.exports.xx=xx其实是一样的，不过如果直接为export赋值，则不能写成exports=xx，而应该写成module.exports=xx，因为exports在这里只是一个引用。
+
+从上面也可以看到，每一次require，都会把new一个Module，并且把这个Module添加到当前模块的children中，并且返回新建的Module对象的exports。
+
+其实node启动的原理跟require是一样的，src/node.cc中的node::LoadEnvironment函数会被调用，在该函数内则会接着调用lib/internal/bootstrap_node.js中的代码，并执行startup函数，startup函数会执行Module.runMain方法，而Module.runMain方法会执行Module._load方法，参数就是命令行的第一个参数（比如： node ./app.js），如此，跟上面require就走到一起了。
+
+
